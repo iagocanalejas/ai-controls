@@ -133,45 +133,49 @@ async function runOpenAIBulkDelete() {
   const token = await getOpenAIAccessToken();
   if (!token) return alert("Could not find session token. Are you logged in?");
 
-  // Change button state to show progress
   const runBtn = document.getElementById("bd-run-delete");
   runBtn.textContent = "Deleting...";
   runBtn.disabled = true;
 
-  for (const cb of selectedCbs) {
-    const chatLink = cb.closest("a");
-    if (!chatLink) continue;
+  const chunkSize = 10;
+  for (let i = 0; i < selectedCbs.length; i += chunkSize) {
+    const chunk = selectedCbs.slice(i, i + chunkSize);
 
-    // Extract the UUID from the href (e.g., /c/12345-abcd-...)
-    const url = new URL(chatLink.href);
-    const chatId = url.pathname.split("/").pop();
+    const deletePromises = chunk.map(async (cb) => {
+      const chatLink = cb.closest("a");
+      if (!chatLink) return;
 
-    try {
-      const res = await fetch(
-        `https://chatgpt.com/backend-api/conversation/${chatId}`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
+      const url = new URL(chatLink.href);
+      const chatId = url.pathname.split("/").pop();
+
+      try {
+        const res = await fetch(
+          `https://chatgpt.com/backend-api/conversation/${chatId}`,
+          {
+            method: "PATCH",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ is_visible: false }),
           },
-          body: JSON.stringify({ is_visible: false }), // This is how ChatGPT "deletes" chats
-        },
-      );
+        );
 
-      if (res.ok) {
-        chatLink.style.opacity = "0.3"; // Visual feedback
-        console.log(`Deleted: ${chatId}`);
+        if (res.ok) {
+          chatLink.style.opacity = "0.3";
+          console.log(`Deleted: ${chatId}`);
+        }
+      } catch (err) {
+        console.error(`Failed to delete ${chatId}:`, err);
       }
-    } catch (err) {
-      console.error(`Failed to delete ${chatId}:`, err);
-    }
+    });
 
-    // Tiny delay to avoid rate limiting
-    await new Promise((r) => setTimeout(r, 200));
+    await Promise.all(deletePromises);
+    await new Promise((r) => setTimeout(r, 500));
+
+    runBtn.textContent = `Deleting (${Math.min(i + chunkSize, selectedCbs.length)}/${selectedCbs.length})...`;
   }
 
-  alert("Bulk delete finished. Refreshing to update list...");
   location.reload();
 }
 
