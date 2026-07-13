@@ -34,9 +34,7 @@ async function injectGeminiButton() {
 let checkboxesVisible = false
 
 function toggleGeminiBulkDelete() {
-  const chats = document
-    .querySelector('conversations-list')
-    .querySelectorAll('a[data-test-id]:not([data-test-id="expanded-button"])')
+  const chats = document.querySelector('conversations-list').querySelectorAll('a[mat-list-item]')
   checkboxesVisible = !checkboxesVisible
 
   chats.forEach((chat) => {
@@ -145,7 +143,8 @@ async function runGeminiBulkDelete() {
       btnDelete.click()
       await new Promise((r) => setTimeout(r, 150))
 
-      const confirmBtn = document.querySelector('button[data-test-id="confirm-button"]')
+      const actionButtons = document.querySelector('mat-dialog-actions').querySelectorAll('button')
+      const confirmBtn = actionButtons[actionButtons.length - 1]
       if (!confirmBtn) {
         console.warn('Confirm button not found for chat deletion', chatLink)
         return
